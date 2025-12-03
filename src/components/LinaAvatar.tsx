@@ -1,4 +1,4 @@
-import linaImage from 'figma:asset/847ec97cca6cf021b8744c9b4ca68ebc991f5cc4.png';
+import linaImage from '../assets/LinaGenAI.png';
 
 interface LinaAvatarProps {
   emotion?: 'happy' | 'welcoming' | 'thinking' | 'excited';

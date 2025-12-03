@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { LinaAvatar } from "./LinaAvatar";
 import { LinaContextForm } from "./LinaContextForm";
 import {
@@ -16,6 +16,11 @@ import {
   Lightbulb,
   Zap,
 } from "lucide-react";
+import {
+  type ComponenteCurricular,
+  type Competencia,
+  type NivelDesempeno,
+} from "../data/unidades";
 import { Button } from "./ui/button";
 import { DisclaimerBox } from "./DisclaimerBox";
 
@@ -44,6 +49,9 @@ interface CurricularContext {
   condicionesEspeciales: string;
   vinculacionSocial: string;
   datosAdicionales: string;
+
+  // 🔹 NUEVO: descripción del nivel, tomada del JSON (descripcion_desempeño)
+  descripcionDesempeno: string;
 }
 
 export function GenIASection({
@@ -65,32 +73,61 @@ export function GenIASection({
     useState(false);
   const [activityTheme, setActivityTheme] = useState("");
   const [currentStep, setCurrentStep] = useState<'tema' | 'objetivos' | 'metodologia' | 'criterios' | 'recursos' | 'completo'>('tema');
+  const [sessionId, setSessionId] = useState<string>(() => crypto.randomUUID());
 
-  const handleContextComplete = (
-    context: CurricularContext,
-  ) => {
+  useEffect(() => {
+    if (currentScreen === "introduction") {
+      setSessionId(crypto.randomUUID());
+    }
+  }, [currentScreen]);
+
+  const handleContextComplete = (context: CurricularContext) => {
     setCurricularContext(context);
     setCurrentScreen("chat");
-
-    // Initialize document with context information
+  
+    // Helpers para formatear listas
+    const formatList = (label: string, items?: string[]) => {
+      if (!items || items.length === 0) return "";
+      return `${label}:\n${items.map((item, i) => `  - ${item}`).join("\n")}\n\n`;
+    };
+  
+    const formatStringList = (label: string, value?: string) => {
+      if (!value || !value.trim()) return "";
+      const items = value
+        .split(",")
+        .map((v) => v.trim())
+        .filter(Boolean);
+      if (items.length === 0) return "";
+      return formatList(label, items);
+    };
+  
     const contextSection: DocumentSection = {
       id: "context",
       title: "Contexto Curricular",
       content: `Unidad Académica: ${context.unidadAcademica}
-Componente Curricular: ${context.componenteCurricular}
-Competencias Seleccionadas (${context.competenciasPrincipales.length}):
-${context.competenciasPrincipales.map((c, i) => `${i + 1}. ${c}`).join('\n')}
+  Componente Curricular: ${context.componenteCurricular}
+  Semestre de los estudiantes: ${context.nivelesFormacion.join(", ")}
+  
+  Competencia seleccionada: ${context.competenciasPrincipales}
 
-Nivel de Desempeño: ${context.nivelDesempeno}
-Número de Estudiantes: ${context.numEstudiantes}
-Duración de la Actividad: ${context.duracionActividad}`,
+  Nivel de desempeño: ${context.nivelDesempeno}
+  Descripción del nivel: ${context.descripcionDesempeno}
+  
+  ${formatList("Resultados de aprendizaje", context.resultadosAprendizaje)}${formatList("Criterios de evaluación", context.criteriosEvaluacion)}${formatStringList("Conocimientos proposicionales", context.conocimientosProposicionales)}${formatStringList("Conocimientos funcionales", context.conocimientosFuncionales)}${formatStringList("Conocimientos axiológicos", context.conocimientosAxiologicos)}
+  Dedicación horaria estimada: ${context.dedicacionHoraria || "No registrada"}
+  Número de estudiantes: ${context.numEstudiantes || "No registrado"}
+  Duración de la actividad: ${context.duracionActividad || "No registrada"}
+  Condiciones especiales: ${context.condicionesEspeciales || "No registradas"}
+  Vinculación social: ${context.vinculacionSocial || "No registrada"}
+  Datos adicionales: ${context.datosAdicionales || "No registrados"}
+  `,
       status: "confirmed",
       lastUpdated: new Date().toLocaleString(),
     };
-
+  
     setDocumentSections([contextSection]);
-    
-    // Agregar mensaje inicial de Lina
+  
+    // Mensaje inicial de Lina
     const linaGreeting: ChatMessage = {
       id: "lina-greeting",
       from: "agent",
@@ -100,264 +137,105 @@ Duración de la Actividad: ${context.duracionActividad}`,
         minute: "2-digit",
       }),
     };
-    
+  
     setChatHistory([linaGreeting]);
-  };
+  };  
 
   const handleContinueToContext = () => {
     setCurrentScreen("context");
   };
 
-  const handleSendMessage = async (
-    message: string,
-  ): Promise<string> => {
+  const handleSendMessage = async (message: string): Promise<string> => {
+    const timestamp = new Date().toLocaleTimeString("es-CO", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  
     const userMessage: ChatMessage = {
-      id: Date.now().toString(),
+      id: `${Date.now()}-${Math.random()}`,
       from: "user",
-      message: message,
-      timestamp: new Date().toLocaleTimeString("es-CO", {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
+      message,
+      timestamp,
     };
-
     setChatHistory((prev) => [...prev, userMessage]);
     setIsTyping(true);
-
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    let response = "";
-    let newSections: DocumentSection[] = [];
-
-    // Flujo secuencial basado en el paso actual
-    if (currentStep === 'tema') {
-      // Extraer el tema de cualquier mensaje del usuario
-      const topic = message.trim();
-      setActivityTheme(topic);
-
-      response = `Perfecto, "${topic}" es un excelente tema. He registrado esto como el tema principal de nuestra actividad con IA Generativa.
-
-Ahora necesito que definamos los **objetivos de aprendizaje** para esta actividad. ¿Qué quieres que tus estudiantes logren con esta actividad sobre ${topic}?`;
-
-      newSections = [
-        {
-          id: "activity-theme",
-          title: "Tema de la Actividad",
-          content: `Tema seleccionado: ${topic}
-
-La actividad se enfocará en aplicar IA Generativa para explorar y profundizar en este tema, alineado con las competencias seleccionadas: ${curricularContext?.competenciasPrincipales.join('; ')}.`,
-          status: "draft",
-          lastUpdated: new Date().toLocaleString(),
+  
+    try {
+      const payload = {
+        message,
+        sessionId,
+        curricularContext,
+      };
+  
+      const res = await fetch("http://localhost:5678/webhook/lina-chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      ];
-
-      setCurrentStep('objetivos');
-      setHasPendingChanges(true);
-    } else if (currentStep === 'objetivos') {
-      response = `Excelente. Basado en lo que me indicas, propongo estos objetivos de aprendizaje para "${activityTheme}":
-
-1. **Objetivo Conceptual**: Los estudiantes comprenderán los fundamentos de ${activityTheme} mediante el análisis crítico de contenido generado por IA.
-
-2. **Objetivo Procedimental**: Los estudiantes aplicarán herramientas de IA generativa (como ChatGPT, Claude, o DALL-E) para crear materiales educativos relacionados con ${activityTheme}.
-
-3. **Objetivo Actitudinal**: Los estudiantes desarrollarán una postura crítica sobre el uso ético y responsable de la IA en su campo de estudio.
-
-Ahora pasemos a la **metodología**. ¿Cómo te gustaría estructurar las fases de la actividad?`;
-
-      newSections = [
-        {
-          id: "learning-objectives",
-          title: "Objetivos de Aprendizaje",
-          content: `1. Objetivo Conceptual: Comprender los fundamentos de ${activityTheme} mediante análisis crítico de contenido generado por IA.
-
-2. Objetivo Procedimental: Aplicar herramientas de IA generativa para crear materiales educativos relacionados con ${activityTheme}.
-
-3. Objetivo Actitudinal: Desarrollar postura crítica sobre el uso ético y responsable de la IA en el campo de estudio.`,
-          status: "draft",
-          lastUpdated: new Date().toLocaleString(),
-        },
-      ];
-
-      setCurrentStep('metodologia');
-      setHasPendingChanges(true);
-    } else if (currentStep === 'metodologia') {
-      response = `Perfecto. Te propongo esta metodología para implementar la actividad sobre "${activityTheme}":
-
-**Fase 1 - Exploración (30 min)**
-Los estudiantes usarán ChatGPT o Claude para:
-- Generar preguntas de investigación sobre ${activityTheme}
-- Crear mapas conceptuales
-- Explorar diferentes perspectivas del tema
-
-**Fase 2 - Creación (45 min)**
-Trabajo en equipos usando herramientas de IA para:
-- Generar contenido educativo (infografías, resúmenes)
-- Crear casos de estudio o ejemplos prácticos
-- Diseñar actividades de evaluación
-
-**Fase 3 - Evaluación Crítica (30 min)**
-Análisis reflexivo donde los estudiantes:
-- Verifican la precisión del contenido generado
-- Identifican sesgos o limitaciones de la IA
-- Proponen mejoras basadas en su conocimiento
-
-Siguiente paso: necesitamos definir los **criterios de evaluación**. ¿Qué aspectos consideras más importantes para evaluar?`;
-
-      newSections = [
-        {
-          id: "methodology",
-          title: "Metodología",
-          content: `Fase 1 - Exploración (30 min):
-- Generación de preguntas de investigación con ChatGPT/Claude
-- Creación de mapas conceptuales
-- Exploración de perspectivas sobre ${activityTheme}
-
-Fase 2 - Creación (45 min):
-- Generación de contenido educativo (infografías, resúmenes)
-- Creación de casos de estudio
-- Diseño de actividades de evaluación
-
-Fase 3 - Evaluación Crítica (30 min):
-- Verificación de precisión del contenido
-- Identificación de sesgos y limitaciones
-- Propuestas de mejora`,
-          status: "draft",
-          lastUpdated: new Date().toLocaleString(),
-        },
-      ];
-
-      setCurrentStep('criterios');
-      setHasPendingChanges(true);
-    } else if (currentStep === 'criterios') {
-      response = `Excelente. Basándome en tu input, propongo estos criterios de evaluación para la actividad:
-
-**Criterios de Evaluación:**
-
-1. **Uso efectivo de IA (30%)**
-   - Calidad de los prompts utilizados
-   - Diversidad de herramientas empleadas
-   - Aprovechamiento de las capacidades de la IA
-
-2. **Pensamiento crítico (40%)**
-   - Análisis de las respuestas de la IA
-   - Identificación de fortalezas y limitaciones
-   - Mejoras propuestas al contenido generado
-
-3. **Producto final (30%)**
-   - Calidad y utilidad del material creado
-   - Alineación con las competencias seleccionadas
-   - Presentación y comunicación de resultados
-
-Finalmente, hablemos de los **recursos y materiales** necesarios. ¿Qué recursos crees que necesitarás para esta actividad?`;
-
-      newSections = [
-        {
-          id: "evaluation",
-          title: "Criterios de Evaluación",
-          content: `1. Uso efectivo de IA (30%):
-   - Calidad de los prompts utilizados
-   - Diversidad de herramientas empleadas
-   - Aprovechamiento de capacidades de la IA
-
-2. Pensamiento crítico (40%):
-   - Análisis de respuestas de la IA
-   - Identificación de fortalezas y limitaciones
-   - Mejoras propuestas al contenido
-
-3. Producto final (30%):
-   - Calidad y utilidad del material creado
-   - Alineación con competencias
-   - Presentación y comunicación`,
-          status: "draft",
-          lastUpdated: new Date().toLocaleString(),
-        },
-      ];
-
-      setCurrentStep('recursos');
-      setHasPendingChanges(true);
-    } else if (currentStep === 'recursos') {
-      response = `Perfecto. Aquí están los recursos necesarios para implementar esta actividad:
-
-**Recursos Tecnológicos:**
-- Acceso a internet en el aula o laboratorio
-- Cuentas de ChatGPT/Claude para los estudiantes
-- (Opcional) Herramientas de generación de imágenes como DALL-E o Midjourney
-
-**Materiales Didácticos:**
-- Guía de prompts efectivos para estudiantes
-- Rúbrica de evaluación detallada
-- Plantillas para documentar el proceso
-- Ejemplos de buenos y malos usos de IA
-
-**Recursos de Apoyo:**
-- Lista de herramientas de IA recomendadas
-- Tutoriales sobre uso ético de IA
-- Lecturas sobre limitaciones de la IA generativa
-
-¡Excelente! Hemos completado el diseño de tu actividad con IA Generativa. El documento está listo para que lo revises y confirmes los cambios.`;
-
-      newSections = [
-        {
-          id: "resources",
-          title: "Recursos Necesarios",
-          content: `Recursos Tecnológicos:
-- Acceso a internet
-- Cuentas de ChatGPT/Claude
-- Herramientas de generación de imágenes (opcional)
-
-Materiales Didácticos:
-- Guía de prompts efectivos
-- Rúbrica de evaluación
-- Plantillas de documentación
-- Ejemplos de uso de IA
-
-Recursos de Apoyo:
-- Lista de herramientas recomendadas
-- Tutoriales sobre uso ético
-- Lecturas sobre limitaciones de IA`,
-          status: "draft",
-          lastUpdated: new Date().toLocaleString(),
-        },
-      ];
-
-      setCurrentStep('completo');
-      setHasPendingChanges(true);
-    } else if (currentStep === 'completo') {
-      response = `Ya hemos completado todos los aspectos de la actividad con IA Generativa:
-✓ Tema
-✓ Objetivos de aprendizaje
-✓ Metodología
-✓ Criterios de evaluación
-✓ Recursos
-
-Puedes revisar el documento completo y confirmar los cambios para continuar con la siguiente fase del proyecto.`;
-    }
-
-    const agentMessage: ChatMessage = {
-      id: (Date.now() + 1).toString(),
-      from: "agent",
-      message: response,
-      timestamp: new Date().toLocaleTimeString("es-CO", {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-    };
-
-    setIsTyping(false);
-    setChatHistory((prev) => [...prev, agentMessage]);
-
-    if (newSections.length > 0) {
-      setDocumentSections((prev) => {
-        const existingSections = prev.filter(
-          (s) => !newSections.find((ns) => ns.id === s.id),
-        );
-        return [...existingSections, ...newSections];
+        body: JSON.stringify(payload),
       });
+  
+      console.log("Respuesta n8n status:", res.status);
+      const rawText = await res.text();
+      console.log("Respuesta n8n raw:", rawText);
+  
+      if (!res.ok) {
+        throw new Error(`Error HTTP ${res.status}: ${rawText}`);
+      }
+  
+      let replyText: string;
+  
+      if (!rawText.trim()) {
+        replyText =
+          "Lina no pudo interpretar la respuesta del agente en n8n (respuesta vacía).";
+      } else {
+        try {
+          const data = JSON.parse(rawText);
+          replyText =
+            data.reply ??
+            data.output ??
+            "Lina no pudo interpretar la respuesta del agente en n8n.";
+        } catch (e) {
+          console.warn("Respuesta no es JSON, usando texto plano:", e);
+          replyText = rawText;
+        }
+      }
+  
+      const agentMessage: ChatMessage = {
+        id: `${Date.now()}-${Math.random()}`,
+        from: "agent",
+        message: replyText,
+        timestamp: new Date().toLocaleTimeString("es-CO", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      };
+  
+      setChatHistory((prev) => [...prev, agentMessage]);
+      return replyText;
+    } catch (error) {
+      console.error("Error llamando al webhook de n8n:", error);
+      const errorMsg =
+        "Hubo un problema al conectarme con el agente en n8n desde CreAI Maker.";
+  
+      const agentMessage: ChatMessage = {
+        id: `${Date.now()}-${Math.random()}`,
+        from: "agent",
+        message: errorMsg,
+        timestamp: new Date().toLocaleTimeString("es-CO", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      };
+  
+      setChatHistory((prev) => [...prev, agentMessage]);
+      return errorMsg;
+    } finally {
+      setIsTyping(false);
     }
-
-    return response;
   };
-
+  
+  
   const handleConfirmChanges = () => {
     setDocumentSections((prev) =>
       prev.map((section) => ({

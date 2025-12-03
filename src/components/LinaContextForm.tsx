@@ -576,18 +576,20 @@ export function LinaContextForm({
   };
 
   const handleConfirmAndContinue = () => {
-    // Transform context to match GenIASection's expected format
+    // 1. Construir el contexto que espera GenIASection
     const transformedContext = {
       unidadAcademica: context.unidadAcademica,
       componenteCurricular: context.componenteSeleccionado,
       competenciasPrincipales: [context.competenciaSeleccionada],
       nivelDesempeno: context.nivelDesempeno,
       nivelesFormacion: [context.semestreEstudiantes],
+  
       resultadosAprendizaje: context.resultadosAprendizaje,
       criteriosEvaluacion: context.criteriosEvaluacion,
       conocimientosProposicionales: context.conocimientosProposicionales.join(", "),
       conocimientosFuncionales: context.conocimientosFuncionales.join(", "),
       conocimientosAxiologicos: context.conocimientosAxiologicos.join(", "),
+  
       dedicacionHoraria: context.dedicacionHoraria,
       numEstudiantes: context.numEstudiantes,
       duracionActividad: context.duracionActividad,
@@ -595,10 +597,14 @@ export function LinaContextForm({
       condicionesEspeciales: context.condicionesEspeciales,
       vinculacionSocial: context.vinculacionSocial,
       datosAdicionales: context.datosAdicionales,
+  
+      // 🔹 Aquí inyectamos exactamente la "descripcion_desempeño" del nivel actual
+      descripcionDesempeno: currentNivelData?.descripcion_desempeño ?? "",
     };
+  
     onComplete(transformedContext as any);
-  };
-
+  };  
+  
   const handleEditConfirmation = () => {
     setShowConfirmation(false);
   };
@@ -1077,7 +1083,7 @@ export function LinaContextForm({
         </div>
 
         {/* DEV MODE: Auto-fill button */}
-        {process.env.NODE_ENV === "development" && (
+        {false &&process.env.NODE_ENV === "development" && (
           <Button
             onClick={handleDevAutoFill}
             size="sm"
@@ -1134,7 +1140,7 @@ export function LinaContextForm({
                     if (hasOriginalData) {
                       return (
                         <p className="text-gray-500 text-sm">
-                          Revisa los {originalCount} elementos del PEI UAO. Puedes agregar elementos personalizados adicionales.
+                          Revisa los {originalCount} elementos cargados desde el sistema curricular. Puedes agregar elementos personalizados adicionales.
                         </p>
                       );
                     } else {

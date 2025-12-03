@@ -71,17 +71,23 @@ export function AgentChatInterface({
       </div>
 
       {/* Chat messages */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gradient-to-br from-gray-50 to-white min-h-0">
+      <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-3 bg-gradient-to-br from-gray-50 to-white min-h-0">
         {/* Welcome message - only shown when chat history is empty */}
         {chatHistory.length === 0 && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="flex justify-start"
           >
-            <div className="bg-white border-2 border-gray-200 rounded-2xl rounded-tl-none p-4 shadow-sm max-w-[85%]">
-              <p className="text-gray-800 text-[14px]">{welcomeMessage}</p>
+            <div className="flex flex-col max-w-[85%]">
+              <div className="bg-white border border-gray-200 rounded-2xl rounded-tl-sm p-4 shadow-md hover:shadow-lg transition-shadow">
+                <p className="text-gray-800 text-[14px] leading-relaxed whitespace-pre-wrap break-words">
+                  {welcomeMessage}
+                </p>
+              </div>
+              <p className="text-xs text-gray-500 mt-1.5 ml-3">Justo ahora</p>
             </div>
-            <p className="text-xs text-gray-500 mt-1 ml-2">Justo ahora</p>
           </motion.div>
         )}
 
@@ -90,24 +96,37 @@ export function AgentChatInterface({
           {chatHistory.map((msg) => (
             <motion.div
               key={msg.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className={msg.from === 'user' ? 'flex justify-end' : ''}
+              initial={{ opacity: 0, y: 10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.2 }}
+              className={`flex w-full ${msg.from === 'user' ? 'justify-end' : 'justify-start'}`}
             >
-              <div>
+              <div className={`flex flex-col ${msg.from === 'user' ? 'items-end' : 'items-start'} max-w-[85%]`}>
                 <div
-                  className={`max-w-[85%] rounded-2xl p-4 shadow-sm ${
+                  className={`rounded-2xl px-4 py-3 shadow-md hover:shadow-lg transition-all duration-200 ${
                     msg.from === 'user'
-                      ? `${agentColor} text-white rounded-tr-none`
-                      : 'bg-white border-2 border-gray-200 rounded-tl-none'
+                      ? `${agentColor} text-white rounded-tr-sm`
+                      : 'bg-white border border-gray-200 rounded-tl-sm'
                   }`}
                 >
-                  <p className={`text-[14px] ${msg.from === 'user' ? 'text-white' : 'text-gray-800'}`}>
+                  <p 
+                    className={`text-[14px] leading-relaxed whitespace-pre-wrap break-words ${
+                      msg.from === 'user' 
+                        ? 'text-white' 
+                        : 'text-gray-800'
+                    }`}
+                  >
                     {msg.message}
                   </p>
                 </div>
-                <p className={`text-xs text-gray-500 mt-1 ${msg.from === 'user' ? 'mr-2 text-right' : 'ml-2'}`}>
+                <p 
+                  className={`text-xs text-gray-500 mt-1.5 ${
+                    msg.from === 'user' 
+                      ? 'mr-3' 
+                      : 'ml-3'
+                  }`}
+                >
                   {msg.timestamp}
                 </p>
               </div>
@@ -120,24 +139,28 @@ export function AgentChatInterface({
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="flex justify-start"
           >
-            <div className="bg-white border-2 border-gray-200 rounded-2xl rounded-tl-none p-4 shadow-sm max-w-[85%]">
-              <div className="flex gap-1">
-                <motion.div
-                  className="w-2 h-2 bg-gray-400 rounded-full"
-                  animate={{ y: [0, -8, 0] }}
-                  transition={{ duration: 0.6, repeat: Infinity, delay: 0 }}
-                />
-                <motion.div
-                  className="w-2 h-2 bg-gray-400 rounded-full"
-                  animate={{ y: [0, -8, 0] }}
-                  transition={{ duration: 0.6, repeat: Infinity, delay: 0.2 }}
-                />
-                <motion.div
-                  className="w-2 h-2 bg-gray-400 rounded-full"
-                  animate={{ y: [0, -8, 0] }}
-                  transition={{ duration: 0.6, repeat: Infinity, delay: 0.4 }}
-                />
+            <div className="flex flex-col max-w-[85%]">
+              <div className="bg-white border border-gray-200 rounded-2xl rounded-tl-sm p-4 shadow-md">
+                <div className="flex gap-1.5 items-center">
+                  <motion.div
+                    className="w-2 h-2 bg-gray-400 rounded-full"
+                    animate={{ y: [0, -6, 0] }}
+                    transition={{ duration: 0.6, repeat: Infinity, delay: 0 }}
+                  />
+                  <motion.div
+                    className="w-2 h-2 bg-gray-400 rounded-full"
+                    animate={{ y: [0, -6, 0] }}
+                    transition={{ duration: 0.6, repeat: Infinity, delay: 0.2 }}
+                  />
+                  <motion.div
+                    className="w-2 h-2 bg-gray-400 rounded-full"
+                    animate={{ y: [0, -6, 0] }}
+                    transition={{ duration: 0.6, repeat: Infinity, delay: 0.4 }}
+                  />
+                </div>
               </div>
             </div>
           </motion.div>
