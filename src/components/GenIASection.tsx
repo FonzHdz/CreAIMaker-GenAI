@@ -31,6 +31,19 @@ interface GenIASectionProps {
 
 type Screen = "context" | "introduction" | "chat";
 
+type LinaDocUpdate = {
+  sectionId: 'tema' | 'objetivos' | 'metodologia' | 'criterios' | 'recursos' | 'context' | 'reset';
+  title: string;
+  content: string;
+};
+
+type LinaResponse = {
+  reply?: string;
+  output?: string;
+  doc_update?: LinaDocUpdate;
+  next_step?: 'tema' | 'objetivos' | 'metodologia' | 'criterios' | 'recursos' | 'completo';
+};
+
 interface CurricularContext {
   unidadAcademica: string;
   componenteCurricular: string;
@@ -165,6 +178,7 @@ export function GenIASection({
         message,
         sessionId,
         curricularContext,
+        currentStep
       };
   
       const res = await fetch("http://localhost:5678/webhook/lina-chat", {
@@ -190,11 +204,52 @@ export function GenIASection({
           "Lina no pudo interpretar la respuesta del agente en n8n (respuesta vacía).";
       } else {
         try {
-          const data = JSON.parse(rawText);
+          const data = JSON.parse(rawText) as LinaResponse;
           replyText =
             data.reply ??
             data.output ??
             "Lina no pudo interpretar la respuesta del agente en n8n.";
+          
+          // Aplicar actualización del documento si existe
+          if (data.doc_update?.sectionId) {
+            if (data.doc_update.sectionId === "reset") {
+              setDocumentSections((prev) => {
+                const contextSection = prev.find((s) => s.id === "context");
+                return contextSection ? [contextSection] : [];
+              });
+              setHasPendingChanges(false);
+            } else if (data.doc_update.title && data.doc_update.content) {
+            const newSection: DocumentSection = {
+              id: data.doc_update.sectionId,
+              title: data.doc_update.title,
+              content: data.doc_update.content,
+              status: "draft",
+              lastUpdated: new Date().toLocaleString(),
+            };
+
+            setDocumentSections((prev) => {
+              // Mantener el contexto al inicio si existe
+              const contextSection = prev.find((s) => s.id === "context");
+              const rest = prev.filter((s) => s.id !== "context");
+
+              // Buscar si ya existe una sección con este ID
+              const idx = rest.findIndex((s) => s.id === newSection.id);
+              const updatedRest =
+                idx >= 0
+                  ? rest.map((s, i) => (i === idx ? newSection : s))
+                  : [...rest, newSection];
+
+              return contextSection ? [contextSection, ...updatedRest] : updatedRest;
+            });
+
+            setHasPendingChanges(true);
+            }
+          }
+
+          // Actualizar el paso actual si se especifica
+          if (data.next_step) {
+            setCurrentStep(data.next_step);
+          }
         } catch (e) {
           console.warn("Respuesta no es JSON, usando texto plano:", e);
           replyText = rawText;
